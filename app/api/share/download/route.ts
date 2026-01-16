@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import File from "@/models/File";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getDriveAccessToken } from "@/lib/google-drive";
 
 export const dynamic = 'force-dynamic';

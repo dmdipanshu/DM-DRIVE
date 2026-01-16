@@ -4,7 +4,7 @@ import dbConnect from "@/lib/db";
 import Folder from "@/models/Folder";
 import User from "@/models/User";
 import { v4 as uuidv4 } from "uuid";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export const dynamic = 'force-dynamic';
 
