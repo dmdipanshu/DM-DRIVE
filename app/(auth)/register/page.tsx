@@ -1,32 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { XCircle } from "lucide-react";
 
 export default function RegisterClosedPage() {
     const [open, setOpen] = useState(true);
-    const router = useRouter();
 
-    // Auto close popup after 3 seconds
+    // Auto close after 3 seconds
     useEffect(() => {
         const timer = setTimeout(() => {
-            setOpen(false);
+            handleClose();
         }, 3000);
 
         return () => clearTimeout(timer);
     }, []);
 
-    // Redirect after popup closes
-    useEffect(() => {
-        if (!open) {
-            const redirectTimer = setTimeout(() => {
-                window.location.href = "https://dm-dipanshu.site";
-            }, 400); // wait for exit animation
-            return () => clearTimeout(redirectTimer);
-        }
-    }, [open]);
+    const handleClose = () => {
+        setOpen(false);
+
+        // Redirect AFTER animation finishes
+        setTimeout(() => {
+            window.location.replace("https://dm-dipanshu.site");
+        }, 400);
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-black/90">
@@ -53,7 +50,7 @@ export default function RegisterClosedPage() {
                         </p>
 
                         <button
-                            onClick={() => setOpen(false)}
+                            onClick={handleClose}
                             className="px-6 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition"
                         >
                             Go Back
