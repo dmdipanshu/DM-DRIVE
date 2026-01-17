@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import axios from "axios";
-import { Star, File as FileIcon } from "lucide-react";
+import { Star, File as FileIcon, Folder, Trash2, Settings, ArrowLeft } from "lucide-react";
 
 export default function StarredPage() {
     const { status } = useSession();
@@ -18,15 +19,6 @@ export default function StarredPage() {
 
     const fetchStarred = async () => {
         try {
-            // Re-using files endpoint? We need a filter.
-            // Let's assume we modify GET /api/files to support ?starred=true
-            // or we filter client side? Client side is easier for MVP but bad for scale.
-            // Let's modify API to be robust. 
-            // WAIT: I didn't modify GET /api/files to support 'starred' yet.
-            // I should stick to adding support in API or new endpoint.
-            // Let's try calling with a transparent param and I'll update API in next step if needed.
-            // Actually, I can just filter the getAll response if I trust it, but better to filter server side.
-            // Let's use a new params convention: type=starred
             const res = await axios.get("/api/files?starred=true");
             setFiles(res.data);
         } catch (error) {
@@ -35,29 +27,64 @@ export default function StarredPage() {
     }
 
     return (
-        <div className="p-8 bg-gray-50 dark:bg-zinc-950 min-h-screen">
-            <h1 className="text-2xl font-bold mb-6 flex items-center gap-2 text-amber-500">
-                <Star className="w-6 h-6 fill-current" /> Starred
-            </h1>
+        <div className="min-h-screen bg-background text-foreground pb-20 md:pb-8">
+            {/* Header */}
+            <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => router.push("/dashboard")} className="p-2 hover:bg-secondary rounded-lg transition-colors md:hidden">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                    <h1 className="text-xl sm:text-2xl font-bold">Starred</h1>
+                </div>
+            </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {files.map((file) => (
-                    <div key={file._id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 hover:shadow-lg transition-all">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-gray-100 dark:bg-zinc-800 rounded-lg">
-                                <FileIcon className="w-6 h-6 text-blue-500" />
-                            </div>
-                            <span className="truncate font-medium">{file.name}</span>
-                        </div>
-                        <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            {/* Content */}
+            <main className="p-4 sm:p-8">
+                {files.length === 0 ? (
+                    <div className="text-center py-20 text-muted-foreground">
+                        <Star className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                        <p>No starred files</p>
+                        <p className="text-sm mt-2">Star files to find them quickly</p>
                     </div>
-                ))}
-                {files.length === 0 && <p className="text-gray-500">No starred files.</p>}
-            </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                        {files.map((file) => (
+                            <div key={file._id} className="bg-card p-4 rounded-xl border border-border hover:shadow-lg hover:border-primary/50 transition-all">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 bg-secondary rounded-lg">
+                                        <FileIcon className="w-5 h-5 text-blue-500" />
+                                    </div>
+                                    <span className="truncate font-medium text-sm">{file.name}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </main>
 
-            <button onClick={() => router.push("/dashboard")} className="mt-8 text-blue-600 hover:underline">
-                Back to Drive
-            </button>
+            {/* Mobile Bottom Navigation Bar */}
+            <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-card/95 backdrop-blur-xl border-t border-border">
+                <div className="flex items-center justify-around py-2">
+                    <Link href="/dashboard" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Folder className="w-5 h-5" />
+                        <span className="text-xs">Drive</span>
+                    </Link>
+                    <Link href="/dashboard/starred" className="flex flex-col items-center gap-1 px-4 py-2 text-primary">
+                        <Star className="w-5 h-5" />
+                        <span className="text-xs font-medium">Starred</span>
+                    </Link>
+                    <Link href="/dashboard/trash" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                        <span className="text-xs">Trash</span>
+                    </Link>
+                    <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Settings className="w-5 h-5" />
+                        <span className="text-xs">Settings</span>
+                    </Link>
+                </div>
+            </nav>
         </div>
     );
 }

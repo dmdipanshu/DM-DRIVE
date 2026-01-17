@@ -10,7 +10,7 @@ if (!MONGODB_URI) {
 }
 
 // CHANGE THIS TO YOUR EMAIL
-const YOUR_EMAIL = "dmdj235+db@gmail.com";
+const YOUR_EMAIL = "dm@dm.com";
 
 async function makeAdmin() {
     const client = new MongoClient(MONGODB_URI);

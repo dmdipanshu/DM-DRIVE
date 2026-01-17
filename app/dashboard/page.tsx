@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Folder, File as FileIcon, Upload, Search, LogOut, LayoutGrid, List as ListIcon, Star, MoreVertical, Share2, Download, Trash2, Eye, Edit2, Settings, Filter, Image, Video, FileText, Music, Archive, ArrowUpDown, CheckSquare, Square, X, Menu } from "lucide-react";
@@ -51,12 +51,14 @@ export default function Dashboard() {
     const [folderContextMenu, setFolderContextMenu] = useState<{ x: number, y: number } | null>(null);
     const [showFolderShare, setShowFolderShare] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     // Close context menu on click elsewhere
     useEffect(() => {
         const handleClick = () => {
             setContextMenu(null);
             setFolderContextMenu(null);
+            setShowProfileMenu(false);
         };
         window.addEventListener("click", handleClick);
         return () => window.removeEventListener("click", handleClick);
@@ -348,7 +350,7 @@ export default function Dashboard() {
                 <div className="p-6">
                     <Link href="/dashboard">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">T</div>
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">D</div>
                             <h1 className="text-xl font-bold tracking-tight">DM-Drive</h1>
                         </div>
                     </Link>
@@ -427,7 +429,33 @@ export default function Dashboard() {
                             <span className="hidden sm:inline">{uploading ? "Uploading..." : "Upload"}</span>
                             <input type="file" className="hidden" onChange={handleUpload} />
                         </label>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 ring-2 ring-background hidden sm:block"></div>
+                        {/* Profile Menu */}
+                        <div className="relative hidden sm:block">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}
+                                className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 ring-2 ring-background flex items-center justify-center text-white font-semibold text-sm hover:ring-primary transition-all"
+                            >
+                                {session?.user?.name?.charAt(0).toUpperCase() || session?.user?.email?.charAt(0).toUpperCase() || "U"}
+                            </button>
+                            
+                            {showProfileMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-popover border border-border rounded-xl shadow-lg py-2 z-50">
+                                    <div className="px-4 py-2 border-b border-border">
+                                        <p className="font-medium text-foreground truncate">{session?.user?.name || "User"}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
+                                    </div>
+                                    <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
+                                        <Settings className="w-4 h-4" /> Settings
+                                    </Link>
+                                    <button 
+                                        onClick={() => signOut({ callbackUrl: "/login" })}
+                                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" /> Sign Out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </header>
 
@@ -448,80 +476,83 @@ export default function Dashboard() {
                 )}
 
                 {/* NEW: Filter/Sort/Bulk Toolbar */}
-                <div className="px-6 py-3 bg-background/80 backdrop-blur-sm border-b border-border flex flex-wrap items-center gap-3">
-                    {/* File Type Filter */}
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-muted-foreground" />
-                        <select
-                            value={fileTypeFilter}
-                            onChange={(e) => setFileTypeFilter(e.target.value)}
-                            className="bg-secondary text-foreground text-sm rounded-lg px-3 py-1.5 border-none outline-none cursor-pointer"
-                        >
-                            <option value="all">All Files</option>
-                            <option value="images">Images</option>
-                            <option value="videos">Videos</option>
-                            <option value="audio">Audio</option>
-                            <option value="documents">Documents</option>
-                            <option value="archives">Archives</option>
-                        </select>
-                    </div>
-
-                    {/* Sort Options */}
-                    <div className="flex items-center gap-2">
-                        <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as any)}
-                            className="bg-secondary text-foreground text-sm rounded-lg px-3 py-1.5 border-none outline-none cursor-pointer"
-                        >
-                            <option value="date">Date</option>
-                            <option value="name">Name</option>
-                            <option value="size">Size</option>
-                        </select>
-                        <button
-                            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                            className="px-2 py-1 text-xs bg-secondary rounded-lg hover:bg-secondary/80"
-                        >
-                            {sortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
-                        </button>
-                    </div>
-
-                    <div className="flex-1" />
-
-                    {/* Bulk Actions */}
-                    {selectedFiles.size > 0 && (
-                        <div className="flex items-center gap-2 animate-fade-in">
-                            <span className="text-sm text-muted-foreground">{selectedFiles.size} selected</span>
-                            <button
-                                onClick={handleBulkDownload}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+                <div className="px-3 sm:px-6 py-2 sm:py-3 bg-background/80 backdrop-blur-sm border-b border-border overflow-x-auto">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-max">
+                        {/* File Type Filter */}
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                            <select
+                                value={fileTypeFilter}
+                                onChange={(e) => setFileTypeFilter(e.target.value)}
+                                className="bg-secondary text-foreground text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 border-none outline-none cursor-pointer"
                             >
-                                <Download className="w-4 h-4" /> Download
-                            </button>
-                            <button
-                                onClick={() => setSelectedFiles(new Set())}
-                                className="p-1.5 hover:bg-secondary rounded-lg"
+                                <option value="all">All</option>
+                                <option value="images">Images</option>
+                                <option value="videos">Videos</option>
+                                <option value="audio">Audio</option>
+                                <option value="documents">Docs</option>
+                                <option value="archives">Archives</option>
+                            </select>
+                        </div>
+
+                        {/* Sort Options */}
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <ArrowUpDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="bg-secondary text-foreground text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 border-none outline-none cursor-pointer"
                             >
-                                <X className="w-4 h-4" />
+                                <option value="date">Date</option>
+                                <option value="name">Name</option>
+                                <option value="size">Size</option>
+                            </select>
+                            <button
+                                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                                className="px-2 py-1.5 text-xs bg-secondary rounded-lg hover:bg-secondary/80"
+                            >
+                                {sortOrder === "asc" ? "↑" : "↓"}
                             </button>
                         </div>
-                    )}
 
-                    {/* Select All Toggle */}
-                    <button
-                        onClick={toggleSelectAll}
-                        className="flex items-center gap-1 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg"
-                    >
-                        {selectedFiles.size === displayedFiles.length && displayedFiles.length > 0 ? (
-                            <CheckSquare className="w-4 h-4" />
-                        ) : (
-                            <Square className="w-4 h-4" />
+                        <div className="flex-1 min-w-[20px]" />
+
+                        {/* Bulk Actions */}
+                        {selectedFiles.size > 0 && (
+                            <div className="flex items-center gap-1 sm:gap-2 animate-fade-in">
+                                <span className="text-xs sm:text-sm text-muted-foreground">{selectedFiles.size}</span>
+                                <button
+                                    onClick={handleBulkDownload}
+                                    className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs sm:text-sm hover:bg-primary/90"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Download</span>
+                                </button>
+                                <button
+                                    onClick={() => setSelectedFiles(new Set())}
+                                    className="p-1.5 hover:bg-secondary rounded-lg"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
                         )}
-                        All
-                    </button>
+
+                        {/* Select All Toggle */}
+                        <button
+                            onClick={toggleSelectAll}
+                            className="flex items-center gap-1 px-2 py-1.5 text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg"
+                        >
+                            {selectedFiles.size === displayedFiles.length && displayedFiles.length > 0 ? (
+                                <CheckSquare className="w-4 h-4" />
+                            ) : (
+                                <Square className="w-4 h-4" />
+                            )}
+                            <span className="hidden sm:inline">All</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex-1 p-8 overflow-y-auto">
+                <div className="flex-1 p-4 sm:p-8 overflow-y-auto pb-24 md:pb-8">
                     {/* Breadcrumb / Navigation */}
                     {currentFolder && (
                         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors" onClick={navigateUp}>
@@ -601,10 +632,8 @@ export default function Dashboard() {
                                     <div className="aspect-square bg-secondary/30 relative flex items-center justify-center group-hover:bg-secondary/50 transition-colors cursor-pointer" onClick={() => setPreviewFile(file)}>
                                         {file.isStarred && <Star className="absolute top-2 left-2 w-4 h-4 text-amber-500 fill-amber-500 z-10" />}
 
-                                        {file.mimeType?.includes("image") && file.googleFileId ? (
-                                            <img src={`https://drive.google.com/thumbnail?id=${file.googleFileId}&sz=w400`} alt={file.name} loading="lazy" className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
-                                        ) : file.mimeType?.includes("image") ? (
-                                            <img src={`/api/file/${file._id}`} alt={file.name} loading="lazy" className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" />
+                                        {file.mimeType?.includes("image") ? (
+                                            <img src={`/api/file/${file._id}/thumbnail?size=400`} alt={file.name} loading="lazy" className="object-cover w-full h-full hover:scale-105 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                         ) : (
                                             <div className="p-4 rounded-full bg-background shadow-sm">
                                                 {getFileIcon(file.mimeType || "")}
@@ -713,10 +742,8 @@ export default function Dashboard() {
                             <X className="w-6 h-6" />
                         </button>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-6xl h-[85vh] flex items-center justify-center relative">
-                            {previewFile.mimeType?.includes("image") && previewFile.googleFileId ? (
-                                <img src={`https://drive.google.com/thumbnail?id=${previewFile.googleFileId}&sz=w1200`} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={previewFile.name} />
-                            ) : previewFile.mimeType?.includes("image") ? (
-                                <img src={`/api/file/${previewFile._id}`} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={previewFile.name} />
+                            {previewFile.mimeType?.includes("image") ? (
+                                <img src={`/api/file/${previewFile._id}/thumbnail?size=1200`} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={previewFile.name} onError={(e) => { (e.target as HTMLImageElement).src = `/api/file/${previewFile._id}`; }} />
                             ) : (previewFile.mimeType?.includes("video") || previewFile.mimeType?.includes("pdf")) && previewFile.googleFileId ? (
                                 <iframe
                                     src={`https://drive.google.com/file/d/${previewFile.googleFileId}/preview`}
@@ -890,13 +917,27 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Mobile Menu Button */}
-            <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="fixed bottom-6 left-6 z-30 md:hidden p-4 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-            >
-                <Menu className="w-6 h-6" />
-            </button>
+            {/* Mobile Bottom Navigation Bar */}
+            <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-card/95 backdrop-blur-xl border-t border-border">
+                <div className="flex items-center justify-around py-2">
+                    <Link href="/dashboard" className="flex flex-col items-center gap-1 px-4 py-2 text-primary">
+                        <Folder className="w-5 h-5" />
+                        <span className="text-xs font-medium">Drive</span>
+                    </Link>
+                    <Link href="/dashboard/starred" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Star className="w-5 h-5" />
+                        <span className="text-xs">Starred</span>
+                    </Link>
+                    <Link href="/dashboard/trash" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                        <span className="text-xs">Trash</span>
+                    </Link>
+                    <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Settings className="w-5 h-5" />
+                        <span className="text-xs">Settings</span>
+                    </Link>
+                </div>
+            </nav>
         </div >
     );
 }

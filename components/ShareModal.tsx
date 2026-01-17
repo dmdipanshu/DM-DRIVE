@@ -158,7 +158,7 @@ export default function ShareModal({ file, isFolder = false, onClose }: ShareMod
                                         </label>
                                         <select
                                             value={expiryDays}
-                                            onChange={(e) => setExpiryDays(e.target.value ? parseInt(e.target.value) : "")}
+                                            onChange={(e) => setExpiryDays(e.target.value ? parseFloat(e.target.value) : "")}
                                             className="input-glass appearance-none cursor-pointer"
                                         >
                                             {expiryOptions.map((opt) => (

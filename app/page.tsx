@@ -126,6 +126,11 @@ export default function Home() {
 
             {/* Footer */}
             <footer className="relative z-10 py-6 sm:py-8 text-center text-sm text-white/30">
+                <div className="flex items-center justify-center gap-4 mb-2">
+                    <Link href="/terms" className="hover:text-white/60 transition-colors">Terms</Link>
+                    <span>•</span>
+                    <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy</Link>
+                </div>
                 <p>&copy; {new Date().getFullYear()} DM-Drive. Powered by Google Drive.</p>
             </footer>
         </div>

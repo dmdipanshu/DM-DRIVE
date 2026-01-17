@@ -67,8 +67,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         // Log download
         logger.download(file.name, session.user.email || undefined);
 
+        // Add -dm suffix to filename for branding
+        const addDmSuffix = (filename: string) => {
+            const lastDotIndex = filename.lastIndexOf('.');
+            if (lastDotIndex === -1) return filename + '-dm';
+            return filename.slice(0, lastDotIndex) + '-dm' + filename.slice(lastDotIndex);
+        };
+        const downloadName = addDmSuffix(file.name);
+
         const headers = new Headers();
-        headers.set("Content-Disposition", `attachment; filename="${file.name}"`);
+        headers.set("Content-Disposition", `attachment; filename="${downloadName}"`);
         headers.set("Content-Type", file.mimeType || "application/octet-stream");
         headers.set("Accept-Ranges", "bytes");
 
@@ -93,7 +101,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             });
             const token = `${btoa(payload)}.${secret}`;
 
-            const redirectUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(token)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(file.name)}`;
+            const redirectUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(token)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(downloadName)}`;
             return NextResponse.redirect(redirectUrl);
         }
 

@@ -64,7 +64,15 @@ export async function GET(req: Request) {
                 });
                 const workerToken = `${btoa(payload)}.${secret}`;
 
-                const downloadUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(workerToken)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(file.name)}`;
+                // Add -dm suffix to filename for branding
+                const addDmSuffix = (filename: string) => {
+                    const lastDotIndex = filename.lastIndexOf('.');
+                    if (lastDotIndex === -1) return filename + '-dm';
+                    return filename.slice(0, lastDotIndex) + '-dm' + filename.slice(lastDotIndex);
+                };
+                const downloadName = addDmSuffix(file.name);
+
+                const downloadUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(workerToken)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(downloadName)}`;
                 return NextResponse.redirect(downloadUrl);
             }
 
@@ -83,10 +91,18 @@ export async function GET(req: Request) {
                 return new NextResponse("Failed to fetch file from storage", { status: 502 });
             }
 
+            // Add -dm suffix to filename for branding
+            const addDmSuffix = (filename: string) => {
+                const lastDotIndex = filename.lastIndexOf('.');
+                if (lastDotIndex === -1) return filename + '-dm';
+                return filename.slice(0, lastDotIndex) + '-dm' + filename.slice(lastDotIndex);
+            };
+            const downloadName = addDmSuffix(file.name);
+
             // Stream the response
             const headers = new Headers();
             headers.set('Content-Type', file.mimeType || 'application/octet-stream');
-            headers.set('Content-Disposition', `attachment; filename="${file.name}"`);
+            headers.set('Content-Disposition', `attachment; filename="${downloadName}"`);
             // Read as ArrayBuffer to avoid body lock issues
             const fileBuffer = await response.arrayBuffer();
             headers.set('Content-Length', fileBuffer.byteLength.toString());
