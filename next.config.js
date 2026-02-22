@@ -4,7 +4,7 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '50mb',
         },
-        webpackBuildWorker: true,
+        webpackBuildWorker: false,
     },
     // Increase static page generation timeout
     staticPageGenerationTimeout: 180,
