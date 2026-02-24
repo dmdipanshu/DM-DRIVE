@@ -189,22 +189,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
                 );
             }
 
-            if (file.mimeType.includes("pdf")) {
-                return (
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.9, opacity: 0 }}
-                        className="w-[92vw] max-w-5xl h-[88vh] rounded-2xl overflow-hidden shadow-2xl shadow-black/50"
-                    >
-                        <iframe
-                            src={previewUrl}
-                            className="w-full h-full border-0 bg-white rounded-2xl"
-                            title={file.name}
-                        />
-                    </motion.div>
-                );
-            }
+            // PDFs are opened in a new tab via the button handler, not in the modal
 
             // Unsupported type
             return (
@@ -437,10 +422,11 @@ export default function SharePage({ params }: { params: { token: string } }) {
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={() => {
-                                if (canPreview(file?.mimeType || "")) {
-                                    setShowPreview(true);
+                                if (file?.mimeType?.includes("pdf")) {
+                                    // Open PDF in new tab — browser's native PDF viewer handles it inline
+                                    window.open(getPreviewUrl(), '_blank');
                                 } else {
-                                    setShowPreview(true); // Show "not available" prompt
+                                    setShowPreview(true);
                                 }
                             }}
                             className="flex-1 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold py-4 px-5 rounded-xl flex items-center justify-center transition-all backdrop-blur-sm group"
