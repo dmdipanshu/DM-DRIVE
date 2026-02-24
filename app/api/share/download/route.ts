@@ -11,6 +11,7 @@ export async function GET(req: Request) {
         const url = new URL(req.url);
         const token = url.searchParams.get("token");
         const password = url.searchParams.get("password");
+        const isInline = url.searchParams.get("inline") === "true";
 
         if (!token) {
             return new NextResponse("Token required", { status: 400 });
@@ -72,7 +73,10 @@ export async function GET(req: Request) {
                 };
                 const downloadName = addDmSuffix(file.name);
 
-                const downloadUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(workerToken)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(downloadName)}`;
+                let downloadUrl = `${workerUrl}/${file.googleFileId}?token=${encodeURIComponent(workerToken)}&dt=${encodeURIComponent(driveToken)}&name=${encodeURIComponent(downloadName)}`;
+                if (isInline) {
+                    downloadUrl += `&inline=true`;
+                }
                 return NextResponse.redirect(downloadUrl);
             }
 
@@ -102,7 +106,10 @@ export async function GET(req: Request) {
             // Stream the response
             const headers = new Headers();
             headers.set('Content-Type', file.mimeType || 'application/octet-stream');
-            headers.set('Content-Disposition', `attachment; filename="${downloadName}"`);
+
+            const dispositionType = isInline ? 'inline' : 'attachment';
+            headers.set('Content-Disposition', `${dispositionType}; filename="${downloadName}"`);
+
             // Read as ArrayBuffer to avoid body lock issues
             const fileBuffer = await response.arrayBuffer();
             headers.set('Content-Length', fileBuffer.byteLength.toString());
