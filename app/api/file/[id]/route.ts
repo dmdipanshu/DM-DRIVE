@@ -118,11 +118,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             return new NextResponse("Failed to fetch file from storage", { status: 502 });
         }
 
-        // Read as ArrayBuffer to avoid body lock issues
-        const fileBuffer = await driveResponse.arrayBuffer();
-        headers.set('Content-Length', fileBuffer.byteLength.toString());
+        // Stream the response directly (avoids Vercel's ~4.5MB payload size limit)
+        if (driveResponse.headers.get('content-length')) {
+            headers.set('Content-Length', driveResponse.headers.get('content-length')!);
+        }
 
-        return new NextResponse(fileBuffer, { status: 200, headers });
+        return new NextResponse(driveResponse.body, { status: 200, headers });
 
     } catch (error) {
         console.error("DOWNLOAD_ERROR", error);

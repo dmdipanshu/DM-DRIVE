@@ -125,10 +125,12 @@ export async function GET(req: Request) {
             const headers = new Headers();
             headers.set('Content-Type', file.mimeType || 'application/octet-stream');
             headers.set('Content-Disposition', `attachment; filename="${file.name}"`);
-            const fileBuffer = await response.arrayBuffer();
-            headers.set('Content-Length', fileBuffer.byteLength.toString());
+            // Stream the response directly (avoids Vercel's ~4.5MB payload size limit)
+            if (response.headers.get('content-length')) {
+                headers.set('Content-Length', response.headers.get('content-length')!);
+            }
 
-            return new NextResponse(fileBuffer, {
+            return new NextResponse(response.body, {
                 status: 200,
                 headers,
             });
