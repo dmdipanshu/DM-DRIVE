@@ -95,6 +95,53 @@ export async function uploadToDrive(fileStream: any, name: string, mimeType: str
     return response.data; // Contains .id, .name, etc.
 }
 
+/**
+ * Initiates a resumable upload session on Google Drive.
+ * Returns the resumable upload URI that the client can PUT the file to directly.
+ */
+export async function initResumableUpload(name: string, mimeType: string, fileSize: number) {
+    const auth = getAuthClient();
+    const accessToken = await getDriveAccessToken();
+    if (!accessToken) {
+        throw new Error("Failed to obtain Google Drive access token");
+    }
+
+    const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
+
+    // Create resumable upload session via Google Drive API
+    const metadata = {
+        name,
+        mimeType,
+        parents: rootFolderId ? [rootFolderId] : undefined,
+    };
+
+    const res = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
+        {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json; charset=UTF-8',
+                'X-Upload-Content-Type': mimeType,
+                'X-Upload-Content-Length': fileSize.toString(),
+            },
+            body: JSON.stringify(metadata),
+        }
+    );
+
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Failed to init resumable upload: ${res.status} ${errText}`);
+    }
+
+    const uploadUrl = res.headers.get('Location');
+    if (!uploadUrl) {
+        throw new Error('Google Drive did not return a resumable upload URL');
+    }
+
+    return { uploadUrl, accessToken };
+}
+
 export async function getDriveAccessToken() {
     const auth = getAuthClient();
     const tokenResponse = await auth.getAccessToken();

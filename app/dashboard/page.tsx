@@ -143,15 +143,26 @@ export default function Dashboard() {
         const file = uploadedFiles[0];
 
         try {
-            // Build URL with query params
-            const params = new URLSearchParams();
-            params.append("filename", file.name);
-            params.append("type", file.type);
-            params.append("size", file.size.toString());
-            if (currentFolder) params.append("parent", currentFolder);
+            // Step 1: Init — get a resumable upload URL from our server
+            const initRes = await fetch("/api/upload/init", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size.toString(),
+                }),
+            });
 
-            // Use XHR for progress tracking
-            await new Promise<void>((resolve, reject) => {
+            if (!initRes.ok) {
+                const errText = await initRes.text();
+                throw new Error(errText || "Failed to initialize upload");
+            }
+
+            const { uploadUrl, accessToken } = await initRes.json();
+
+            // Step 2: Upload directly to Google Drive (bypasses Vercel size limit)
+            const googleFileId = await new Promise<string>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
 
                 xhr.upload.onprogress = (event) => {
@@ -163,20 +174,45 @@ export default function Dashboard() {
 
                 xhr.onload = () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve();
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            resolve(data.id);
+                        } catch {
+                            reject(new Error("Invalid response from Google Drive"));
+                        }
                     } else {
-                        reject(new Error(xhr.responseText || "Upload failed"));
+                        reject(new Error(`Google Drive upload failed: ${xhr.status}`));
                     }
                 };
 
-                xhr.onerror = () => reject(new Error("Network error"));
+                xhr.onerror = () => reject(new Error("Network error during upload"));
 
-                xhr.open("POST", `/api/upload?${params.toString()}`);
+                xhr.open("PUT", uploadUrl);
                 xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+                xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
                 xhr.send(file);
             });
 
+            // Step 3: Complete — record in our database
+            const completeRes = await fetch("/api/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    googleFileId,
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size.toString(),
+                    parent: currentFolder || null,
+                }),
+            });
+
+            if (!completeRes.ok) {
+                const errText = await completeRes.text();
+                throw new Error(errText || "Failed to save file record");
+            }
+
             fetchContent();
+            fetchStats();
         } catch (error: any) {
             console.error("Upload failed", error);
             alert(error.message || "Upload failed");
@@ -431,13 +467,13 @@ export default function Dashboard() {
                         </label>
                         {/* Profile Menu */}
                         <div className="relative hidden sm:block">
-                            <button 
+                            <button
                                 onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}
                                 className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 ring-2 ring-background flex items-center justify-center text-white font-semibold text-sm hover:ring-primary transition-all"
                             >
                                 {session?.user?.name?.charAt(0).toUpperCase() || session?.user?.email?.charAt(0).toUpperCase() || "U"}
                             </button>
-                            
+
                             {showProfileMenu && (
                                 <div className="absolute right-0 top-full mt-2 w-56 bg-popover border border-border rounded-xl shadow-lg py-2 z-50">
                                     <div className="px-4 py-2 border-b border-border">
@@ -447,7 +483,7 @@ export default function Dashboard() {
                                     <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
                                         <Settings className="w-4 h-4" /> Settings
                                     </Link>
-                                    <button 
+                                    <button
                                         onClick={() => signOut({ callbackUrl: "/login" })}
                                         className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
                                     >
