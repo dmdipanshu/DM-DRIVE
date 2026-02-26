@@ -8,6 +8,12 @@ import { initResumableUpload } from "@/lib/google-drive";
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
+/**
+ * Step 1: Initialize a resumable upload session.
+ * Receives file metadata as JSON, checks auth/storage,
+ * creates a Google Drive resumable upload session,
+ * and returns the upload URL for chunked uploads.
+ */
 export async function POST(req: Request) {
     try {
         const session = await getServerSession();

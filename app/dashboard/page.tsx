@@ -142,6 +142,10 @@ export default function Dashboard() {
         setUploadProgress(0);
         const file = uploadedFiles[0];
 
+        // Chunk size: 3.5MB to stay well under Vercel's 4.5MB limit
+        // Must be a multiple of 256KB per Google Drive resumable upload spec
+        const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5MB
+
         try {
             // Step 1: Init — get a resumable upload URL from our server
             const initRes = await fetch("/api/upload/init", {
@@ -161,37 +165,47 @@ export default function Dashboard() {
 
             const { uploadUrl, accessToken } = await initRes.json();
 
-            // Step 2: Upload directly to Google Drive (bypasses Vercel size limit)
-            const googleFileId = await new Promise<string>((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
+            // Step 2: Upload in chunks through our server proxy
+            const totalSize = file.size;
+            let offset = 0;
+            let googleFileId = "";
 
-                xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        const percent = Math.round((event.loaded / event.total) * 100);
-                        setUploadProgress(percent);
-                    }
-                };
+            while (offset < totalSize) {
+                const end = Math.min(offset + CHUNK_SIZE, totalSize);
+                const chunk = file.slice(offset, end);
+                const isLastChunk = end === totalSize;
 
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            const data = JSON.parse(xhr.responseText);
-                            resolve(data.id);
-                        } catch {
-                            reject(new Error("Invalid response from Google Drive"));
-                        }
-                    } else {
-                        reject(new Error(`Google Drive upload failed: ${xhr.status}`));
-                    }
-                };
+                const contentRange = `bytes ${offset}-${end - 1}/${totalSize}`;
 
-                xhr.onerror = () => reject(new Error("Network error during upload"));
+                const chunkRes = await fetch("/api/upload/chunk", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": file.type || "application/octet-stream",
+                        "x-upload-url": uploadUrl,
+                        "x-access-token": accessToken,
+                        "Content-Range": contentRange,
+                    },
+                    body: chunk,
+                });
 
-                xhr.open("PUT", uploadUrl);
-                xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-                xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-                xhr.send(file);
-            });
+                if (!chunkRes.ok) {
+                    const errText = await chunkRes.text();
+                    throw new Error(errText || `Chunk upload failed at ${offset}`);
+                }
+
+                const chunkData = await chunkRes.json();
+
+                if (chunkData.status === "complete") {
+                    googleFileId = chunkData.fileId;
+                }
+
+                offset = end;
+                setUploadProgress(Math.round((offset / totalSize) * 95)); // Save 5% for DB step
+            }
+
+            if (!googleFileId) {
+                throw new Error("Upload completed but no file ID received");
+            }
 
             // Step 3: Complete — record in our database
             const completeRes = await fetch("/api/upload", {
@@ -211,6 +225,7 @@ export default function Dashboard() {
                 throw new Error(errText || "Failed to save file record");
             }
 
+            setUploadProgress(100);
             fetchContent();
             fetchStats();
         } catch (error: any) {
