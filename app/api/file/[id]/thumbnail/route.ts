@@ -69,19 +69,20 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 });
 
                 if (thumbnailResponse.ok) {
-                    const thumbnailBuffer = await thumbnailResponse.arrayBuffer();
-
                     const headers = new Headers();
                     headers.set("Content-Type", thumbnailResponse.headers.get("Content-Type") || "image/jpeg");
                     headers.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-                    headers.set("Content-Length", thumbnailBuffer.byteLength.toString());
+                    if (thumbnailResponse.headers.get("content-length")) {
+                        headers.set("Content-Length", thumbnailResponse.headers.get("content-length")!);
+                    }
 
-                    return new NextResponse(thumbnailBuffer, { status: 200, headers });
+                    // Stream instead of buffering to avoid Vercel's 4.5MB payload limit
+                    return new NextResponse(thumbnailResponse.body, { status: 200, headers });
                 }
             }
         }
 
-        // Fallback: fetch the actual image file (for smaller images)
+        // Fallback: stream the actual image file
         const driveResponse = await fetch(
             `https://www.googleapis.com/drive/v3/files/${file.googleFileId}?alt=media`,
             {
@@ -94,14 +95,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             return new NextResponse("Failed to fetch thumbnail from storage", { status: 502 });
         }
 
-        const fileBuffer = await driveResponse.arrayBuffer();
-
         const headers = new Headers();
         headers.set("Content-Type", file.mimeType);
         headers.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-        headers.set("Content-Length", fileBuffer.byteLength.toString());
+        if (driveResponse.headers.get("content-length")) {
+            headers.set("Content-Length", driveResponse.headers.get("content-length")!);
+        }
 
-        return new NextResponse(fileBuffer, { status: 200, headers });
+        // Stream instead of buffering to avoid Vercel's 4.5MB payload limit
+        return new NextResponse(driveResponse.body, { status: 200, headers });
 
     } catch (error) {
         console.error("THUMBNAIL_ERROR", error);
